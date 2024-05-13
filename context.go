@@ -88,6 +88,8 @@ type Context struct {
 	// SameSite allows a server to define a cookie attribute making it impossible for
 	// the browser to send this cookie along with cross-site requests.
 	sameSite http.SameSite
+	// 放入构建handler时加入的标记参数
+	box interface{}
 }
 
 /************************************/
@@ -109,6 +111,7 @@ func (c *Context) reset() {
 	c.sameSite = 0
 	*c.params = (*c.params)[:0]
 	*c.skippedNodes = (*c.skippedNodes)[:0]
+	c.box = nil
 }
 
 // Copy returns a copy of the current context that can be safely used outside the request's scope.
@@ -119,7 +122,7 @@ func (c *Context) Copy() *Context {
 		Request:   c.Request,
 		engine:    c.engine,
 	}
-
+	cp.box = c.box
 	cp.writermem.ResponseWriter = nil
 	cp.Writer = &cp.writermem
 	cp.index = abortIndex
@@ -170,6 +173,10 @@ func (c *Context) Handler() HandlerFunc {
 //	})
 func (c *Context) FullPath() string {
 	return c.fullPath
+}
+
+func (c *Context) GetBox() interface{} {
+	return c.box
 }
 
 /************************************/

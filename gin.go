@@ -348,7 +348,31 @@ func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
 		root.fullPath = "/"
 		engine.trees = append(engine.trees, methodTree{method: method, root: root})
 	}
-	root.addRoute(path, handlers)
+	root.addRoute(path, handlers, nil)
+
+	if paramsCount := countParams(path); paramsCount > engine.maxParams {
+		engine.maxParams = paramsCount
+	}
+
+	if sectionsCount := countSections(path); sectionsCount > engine.maxSections {
+		engine.maxSections = sectionsCount
+	}
+}
+
+func (engine *Engine) addRouteWithBox(method, path string, box interface{}, handlers HandlersChain) {
+	assert1(path[0] == '/', "path must begin with '/'")
+	assert1(method != "", "HTTP method can not be empty")
+	assert1(len(handlers) > 0, "there must be at least one handler")
+
+	debugPrintRoute(method, path, handlers)
+
+	root := engine.trees.get(method)
+	if root == nil {
+		root = new(node)
+		root.fullPath = "/"
+		engine.trees = append(engine.trees, methodTree{method: method, root: root})
+	}
+	root.addRoute(path, handlers, box)
 
 	if paramsCount := countParams(path); paramsCount > engine.maxParams {
 		engine.maxParams = paramsCount
@@ -642,6 +666,7 @@ func (engine *Engine) handleHTTPRequest(c *Context) {
 		root := t[i].root
 		// Find route in tree
 		value := root.getValue(rPath, c.params, c.skippedNodes, unescape)
+		c.box = value.box
 		if value.params != nil {
 			c.Params = *value.params
 		}

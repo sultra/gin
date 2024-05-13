@@ -122,6 +122,7 @@ type node struct {
 	children  []*node // child nodes, at most 1 :param style node at the end of the array
 	handlers  HandlersChain
 	fullPath  string
+	box       interface{} // 附加信息
 }
 
 // Increments priority of the given child and reorders if necessary
@@ -149,13 +150,13 @@ func (n *node) incrementChildPrio(pos int) int {
 
 // addRoute adds a node with the given handle to the path.
 // Not concurrency-safe!
-func (n *node) addRoute(path string, handlers HandlersChain) {
+func (n *node) addRoute(path string, handlers HandlersChain, box interface{}) {
 	fullPath := path
 	n.priority++
 
 	// Empty tree
 	if len(n.path) == 0 && len(n.children) == 0 {
-		n.insertChild(path, fullPath, handlers)
+		n.insertChild(path, fullPath, handlers, box)
 		n.nType = root
 		return
 	}
@@ -180,14 +181,15 @@ walk:
 				handlers:  n.handlers,
 				priority:  n.priority - 1,
 				fullPath:  n.fullPath,
+				box:       n.box,
 			}
-
 			n.children = []*node{&child}
 			// []byte for proper unicode char conversion, see #65
 			n.indices = bytesconv.BytesToString([]byte{n.path[i]})
 			n.path = path[:i]
 			n.handlers = nil
 			n.wildChild = false
+			n.box = nil
 			n.fullPath = fullPath[:parentFullPathIndex+i]
 		}
 
@@ -251,7 +253,7 @@ walk:
 					"'")
 			}
 
-			n.insertChild(path, fullPath, handlers)
+			n.insertChild(path, fullPath, handlers, box)
 			return
 		}
 
@@ -261,7 +263,14 @@ walk:
 		}
 		n.handlers = handlers
 		n.fullPath = fullPath
+		n.addBox(box)
 		return
+	}
+}
+
+func (n *node) addBox(box interface{}) {
+	if box != nil {
+		n.box = box
 	}
 }
 
@@ -290,7 +299,7 @@ func findWildcard(path string) (wildcard string, i int, valid bool) {
 	return "", -1, false
 }
 
-func (n *node) insertChild(path string, fullPath string, handlers HandlersChain) {
+func (n *node) insertChild(path string, fullPath string, handlers HandlersChain, box interface{}) {
 	for {
 		// Find prefix until first wildcard
 		wildcard, i, valid := findWildcard(path)
@@ -335,6 +344,7 @@ func (n *node) insertChild(path string, fullPath string, handlers HandlersChain)
 					priority: 1,
 					fullPath: fullPath,
 				}
+				// child.addBox(box)
 				n.addChild(child)
 				n = child
 				continue
@@ -376,7 +386,7 @@ func (n *node) insertChild(path string, fullPath string, handlers HandlersChain)
 			nType:     catchAll,
 			fullPath:  fullPath,
 		}
-
+		child.addBox(box)
 		n.addChild(child)
 		n.indices = string('/')
 		n = child
@@ -390,6 +400,7 @@ func (n *node) insertChild(path string, fullPath string, handlers HandlersChain)
 			priority: 1,
 			fullPath: fullPath,
 		}
+		child.addBox(box)
 		n.children = []*node{child}
 
 		return
@@ -399,6 +410,7 @@ func (n *node) insertChild(path string, fullPath string, handlers HandlersChain)
 	n.path = path
 	n.handlers = handlers
 	n.fullPath = fullPath
+	n.addBox(box)
 }
 
 // nodeValue holds return values of (*Node).getValue method
@@ -407,6 +419,7 @@ type nodeValue struct {
 	params   *Params
 	tsr      bool
 	fullPath string
+	box      interface{}
 }
 
 type skippedNode struct {
@@ -422,7 +435,6 @@ type skippedNode struct {
 // given path.
 func (n *node) getValue(path string, params *Params, skippedNodes *[]skippedNode, unescape bool) (value nodeValue) {
 	var globalParamsCount int16
-
 walk: // Outer loop for walking the tree
 	for {
 		prefix := n.path
@@ -448,6 +460,7 @@ walk: // Outer loop for walking the tree
 									children:  n.children,
 									handlers:  n.handlers,
 									fullPath:  n.fullPath,
+									box:       n.box,
 								},
 								paramsCount: globalParamsCount,
 							}
@@ -608,6 +621,7 @@ walk: // Outer loop for walking the tree
 				}
 				//	n = latestNode.children[len(latestNode.children)-1]
 			}
+			value.box = n.box
 			// We should have reached the node containing the handle.
 			// Check if this node has a handle registered.
 			if value.handlers = n.handlers; value.handlers != nil {

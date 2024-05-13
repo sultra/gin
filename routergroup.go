@@ -90,6 +90,13 @@ func (group *RouterGroup) handle(httpMethod, relativePath string, handlers Handl
 	return group.returnObj()
 }
 
+func (group *RouterGroup) handleBox(httpMethod, relativePath string, box interface{}, handlers HandlersChain) IRoutes {
+	absolutePath := group.calculateAbsolutePath(relativePath)
+	handlers = group.combineHandlers(handlers)
+	group.engine.addRouteWithBox(httpMethod, absolutePath, box, handlers)
+	return group.returnObj()
+}
+
 // Handle registers a new request handle and middleware with the given path and method.
 // The last handler should be the real handler, the other ones should be middleware that can and should be shared among different routes.
 // See the example code in GitHub.
@@ -112,9 +119,17 @@ func (group *RouterGroup) POST(relativePath string, handlers ...HandlerFunc) IRo
 	return group.handle(http.MethodPost, relativePath, handlers)
 }
 
+func (group *RouterGroup) POSTBox(relativePath string, box interface{}, handlers ...HandlerFunc) IRoutes {
+	return group.handleBox(http.MethodPost, relativePath, box, handlers)
+}
+
 // GET is a shortcut for router.Handle("GET", path, handlers).
 func (group *RouterGroup) GET(relativePath string, handlers ...HandlerFunc) IRoutes {
 	return group.handle(http.MethodGet, relativePath, handlers)
+}
+
+func (group *RouterGroup) GETBox(relativePath string, box interface{}, handlers ...HandlerFunc) IRoutes {
+	return group.handleBox(http.MethodGet, relativePath, box, handlers)
 }
 
 // DELETE is a shortcut for router.Handle("DELETE", path, handlers).
@@ -122,14 +137,27 @@ func (group *RouterGroup) DELETE(relativePath string, handlers ...HandlerFunc) I
 	return group.handle(http.MethodDelete, relativePath, handlers)
 }
 
+// DELETE is a shortcut for router.Handle("DELETE", path, handlers).
+func (group *RouterGroup) DELETEBox(relativePath string, box interface{}, handlers ...HandlerFunc) IRoutes {
+	return group.handleBox(http.MethodDelete, relativePath, box, handlers)
+}
+
 // PATCH is a shortcut for router.Handle("PATCH", path, handlers).
 func (group *RouterGroup) PATCH(relativePath string, handlers ...HandlerFunc) IRoutes {
 	return group.handle(http.MethodPatch, relativePath, handlers)
 }
 
+func (group *RouterGroup) PATCHBox(relativePath string, box interface{}, handlers ...HandlerFunc) IRoutes {
+	return group.handleBox(http.MethodPatch, relativePath, box, handlers)
+}
+
 // PUT is a shortcut for router.Handle("PUT", path, handlers).
 func (group *RouterGroup) PUT(relativePath string, handlers ...HandlerFunc) IRoutes {
 	return group.handle(http.MethodPut, relativePath, handlers)
+}
+
+func (group *RouterGroup) PUTBox(relativePath string, box interface{}, handlers ...HandlerFunc) IRoutes {
+	return group.handleBox(http.MethodPut, relativePath, box, handlers)
 }
 
 // OPTIONS is a shortcut for router.Handle("OPTIONS", path, handlers).
