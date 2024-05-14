@@ -352,6 +352,8 @@ func (n *node) insertChild(path string, fullPath string, handlers HandlersChain,
 
 			// Otherwise we're done. Insert the handle in the new leaf
 			n.handlers = handlers
+			// Otherwise we're done. Insert the box in the new leaf
+			n.addBox(box)
 			return
 		}
 
@@ -500,7 +502,7 @@ walk: // Outer loop for walking the tree
 				// Handle wildcard child, which is always at the end of the array
 				n = n.children[len(n.children)-1]
 				globalParamsCount++
-
+				value.box = n.box
 				switch n.nType {
 				case param:
 					// fix truncate the parameter
@@ -647,6 +649,7 @@ walk: // Outer loop for walking the tree
 			for i, c := range []byte(n.indices) {
 				if c == '/' {
 					n = n.children[i]
+					value.box = n.box
 					value.tsr = (len(n.path) == 1 && n.handlers != nil) ||
 						(n.nType == catchAll && n.children[0].handlers != nil)
 					return value
